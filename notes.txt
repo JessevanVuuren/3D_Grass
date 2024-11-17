@@ -1,0 +1,3 @@
+https://www.youtube.com/watch?v=bp7REZBV4P4&ab_channel=SimonDev
+https://github.com/harlan0103/Grass-Rendering-in-Modern-Game-Engine
+https://www.gdcvault.com/play/1027033/Advanced-Graphics-Summit-Procedural-Grass
