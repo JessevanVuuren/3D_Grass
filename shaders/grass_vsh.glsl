@@ -68,39 +68,66 @@ float remap(float v, float inMin, float inMax, float outMin, float outMax) {
   return mix(outMin, outMax, t);
 }
 
-varying float vHeightPercent;
+float easeIn(float x, float t) {
+	return pow(x, t);
+}
+
+mat3 rotateAxis(vec3 axis, float angle) {
+  axis = normalize(axis);
+  float s = sin(angle);
+  float c = cos(angle);
+  float oc = 1.0 - c;
+
+  return mat3(
+    oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,
+    oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,
+    oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c
+  );
+}
+
+varying vec4 vGrassParams;
+varying vec3 vWorldPosition;
+
 
 attribute float vertIndex;
 
 uniform vec3 bladeBasePositions[7];
 uniform float time;
 
+
 void main() {
-    
-    vec3 basePosition = bladeBasePositions[int(vertIndex)];
+  #include <worldpos_vertex>
 
-    float hashNum = hash11(position.x +  position.z);
-    mat3 rotation = rotateY(hashNum * 2.0 * 3.14159);
+  vec3 basePosition = bladeBasePositions[int(vertIndex)];
 
-    float GRASS_SEGMENTS = 3.0;
-    float GRASS_VERTICES = 7.0;
+  
+  float hashNum = hash11(position.x +  position.z);
+  mat3 rotation = rotateY(hashNum * 2.0 * 3.14159);
 
-    float vertID = mod(float(vertIndex), GRASS_VERTICES);
-    float heightPercent = vertID / (GRASS_SEGMENTS * 2.0);
-    vHeightPercent = heightPercent;
-    
+  float GRASS_SEGMENTS = 3.0;
+  float GRASS_VERTICES = 7.0;
 
-    float windDir = noise12(position.xz * 0.05 + 0.005 * time) * 0.6;
-    windDir += noise12(position.xz * 0.01 + 0.005 * time) * 0.6;
+  float vertID = mod(float(vertIndex), GRASS_VERTICES);
+  float heightPercent = vertID / (GRASS_SEGMENTS * 2.0);
+
+  float windDir = noise12(position.xz * 0.05 + 0.05 * (time * 0.01));
+  float windNoiseSample = noise12(position.xz * 0.1 + (time * 0.01) * 1.0);
+  float windLeanAngle = remap(windNoiseSample, -1.0, 1.0, 0.25, 1.0);
+  windLeanAngle = easeIn(windLeanAngle, 2.0) * 1.25;
+  vec3 windAxis = vec3(cos(windDir), 0.0, sin(windDir));
+
+  windLeanAngle *= heightPercent;
 
 
-    float bendFactor = noise12(vec2(time * 0.01) + position.xz) * 0.1;
-    mat3 bend = rotateX(heightPercent * bendFactor);
+  vec3 transformed = basePosition * rotateAxis(windAxis, windLeanAngle) * rotation;
+  transformed = transformed + position;
 
-    bend += windDir;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
 
-    vec3 transformed = basePosition * bend * rotation;
-    transformed = transformed + position;
+  vGrassParams.x = position.x;
+  vGrassParams.y = heightPercent;
+  vGrassParams.z = position.z;
+  float randomBend = hash12(position.xz) * 0.7;
+  vGrassParams.w = randomBend;
 
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
 }
